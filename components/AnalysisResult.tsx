@@ -1,23 +1,35 @@
 import React, { useState, useEffect } from 'react';
 import type { AnalysisResult } from '../types';
-import { PlayIcon, StopIcon, SparklesIcon } from '../constants';
+import { PlayIcon, StopIcon, SparklesIcon, PauseIcon, VolumeUpIcon, VolumeOffIcon } from '../constants';
 
 interface AnalysisResultProps {
   result: AnalysisResult;
   originalImageUrl: string;
-  isNarrating: boolean;
+  narrationState: 'playing' | 'paused' | 'stopped';
+  narrationVolume: number;
   isEnhancing: boolean;
-  onReplayNarration: () => void;
+  uploadDate: string | null;
+  onPlayPauseNarration: () => void;
+  onStopNarration: () => void;
+  onVolumeChange: (volume: number) => void;
   onEnhanceImage: () => void;
+  onJumpToTimeline: (stepId: string) => void;
+  onFindSimilarCases: (term: string) => void;
 }
 
 const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
   result,
   originalImageUrl,
-  isNarrating,
+  narrationState,
+  narrationVolume,
   isEnhancing,
-  onReplayNarration,
-  onEnhanceImage
+  uploadDate,
+  onPlayPauseNarration,
+  onStopNarration,
+  onVolumeChange,
+  onEnhanceImage,
+  onJumpToTimeline,
+  onFindSimilarCases,
 }) => {
   const [visibleBoxes, setVisibleBoxes] = useState<number[]>([]);
 
@@ -37,11 +49,20 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
       };
     }
   }, [result.manipulatedAreas]);
+  
+  const getPlayButtonContent = () => {
+      if (narrationState === 'playing') return <><PauseIcon /> Pause</>;
+      if (narrationState === 'paused') return <><PlayIcon /> Resume</>;
+      return <><PlayIcon /> Play Narration</>;
+  };
 
   return (
     <div className="space-y-6 animate-fade-in w-full">
       <div>
-        <h2 className="text-2xl font-bold text-cyan-400 mb-3">Forensic Analysis</h2>
+        <h2 className="text-2xl font-bold text-cyan-400 mb-1">Forensic Analysis</h2>
+        {uploadDate && (
+            <p className="text-xs text-gray-500 mb-3">Analysis performed on: {uploadDate}</p>
+        )}
         <div className="p-4 bg-gray-800 rounded-lg border border-gray-700 max-h-48 overflow-y-auto">
           <p className="text-gray-300 whitespace-pre-wrap">{result.analysisText}</p>
         </div>
@@ -87,15 +108,60 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
           </div>
         </div>
       </div>
+      
+      <div className="border-t border-gray-700 pt-4 space-y-4">
+         <h3 className="text-lg font-semibold text-center text-gray-300">Next Steps</h3>
+         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <button
+                onClick={() => onJumpToTimeline('analysis')}
+                className="w-full sm:w-auto text-sm flex items-center justify-center px-4 py-2 font-semibold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                View 'Analysis' on Timeline
+            </button>
+            <button
+                onClick={() => onFindSimilarCases('tampering')}
+                 className="w-full sm:w-auto text-sm flex items-center justify-center px-4 py-2 font-semibold text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                Find Similar Cases
+            </button>
+         </div>
+      </div>
 
-      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-        <button
-          onClick={onReplayNarration}
-          className="w-full sm:w-auto flex items-center justify-center px-4 py-2 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:bg-blue-800 disabled:cursor-not-allowed"
-          disabled={isNarrating}
-        >
-          {isNarrating ? <><StopIcon /> Stop Narration</> : <><PlayIcon /> Replay Narration</>}
-        </button>
+      <div className="border-t border-gray-700 pt-4 space-y-4">
+         <h3 className="text-lg font-semibold text-center text-gray-300">Narration Controls</h3>
+         <div className="flex items-center justify-center gap-4">
+            <button
+                onClick={onPlayPauseNarration}
+                className="w-36 flex items-center justify-center px-4 py-2 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                {getPlayButtonContent()}
+            </button>
+            <button
+                onClick={onStopNarration}
+                disabled={narrationState === 'stopped'}
+                className="w-36 flex items-center justify-center px-4 py-2 font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition-colors disabled:bg-red-800 disabled:cursor-not-allowed"
+                >
+                <StopIcon /> Stop
+            </button>
+         </div>
+         <div className="flex items-center gap-3 max-w-xs mx-auto">
+            <VolumeOffIcon className="w-5 h-5 text-gray-400" />
+            <input 
+                type="range"
+                min="0"
+                max="1"
+                step="0.05"
+                value={narrationVolume}
+                onChange={(e) => onVolumeChange(Number(e.target.value))}
+                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-cyan-500"
+                aria-label="Narration volume"
+            />
+            <VolumeUpIcon className="w-5 h-5 text-gray-400" />
+         </div>
+      </div>
+
+
+      <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 border-t border-gray-700">
         <button
           onClick={onEnhanceImage}
           className="w-full sm:w-auto flex items-center justify-center px-4 py-2 font-semibold text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-800 disabled:cursor-wait"

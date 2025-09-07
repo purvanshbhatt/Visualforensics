@@ -11,3 +11,23 @@ export interface AnalysisResult {
   tamperedImageUrl: string;
   manipulatedAreas?: BoundingBox[];
 }
+
+export interface TimelineStep {
+    id: string;
+    title: string;
+    Icon: React.FC<React.SVGProps<SVGSVGElement>>;
+    explanation: string;
+    scenario: string;
+    tools: string[];
+}
+
+export interface Case {
+    id: string;
+    title: string;
+    incidentType: 'Phishing' | 'Malware' | 'Insider Threat' | 'Mobile Device' | 'Data Breach';
+    summary: string;
+    outcome: string;
+    details: string;
+    workflow: string[];
+    tools: string[];
+}

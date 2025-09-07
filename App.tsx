@@ -5,8 +5,9 @@ import ImageUploader from './components/ImageUploader';
 import AnalysisResultDisplay from './components/AnalysisResult';
 import Loader from './components/Loader';
 import ExampleImages from './components/ExampleImages';
+import ForensicsHub from './components/ForensicsHub';
 import { analyzeImageForTampering, generateTamperedImage } from './services/geminiService';
-import { narrateText, stopNarration } from './services/elevenLabsService';
+import { narrateText, stopNarration, pauseNarration, resumeNarration, setNarrationVolume } from './services/elevenLabsService';
 import { enhanceImage } from './services/falService';
 import { saveAnalysisResult, loadAnalysisResult, clearAnalysisResult } from './services/storageService';
 import { TrashIcon } from './constants';
@@ -22,18 +23,25 @@ const App: React.FC = () => {
     const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
     const [prompt, setPrompt] = useState<string>("Analyze this image for tampering");
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+    const [uploadDate, setUploadDate] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
-    const [isNarrating, setIsNarrating] = useState<boolean>(false);
     const [isEnhancing, setIsEnhancing] = useState<boolean>(false);
+    
+    // Narration State
+    const [narrationState, setNarrationState] = useState<'playing' | 'paused' | 'stopped'>('stopped');
+    const [narrationVolume, setNarrationVolume] = useState<number>(1);
+
+    // State for integration with ForensicsHub
+    const [jumpToTimeline, setJumpToTimeline] = useState<string | null>(null);
+    const [findCaseTerm, setFindCaseTerm] = useState<string | null>(null);
 
     useEffect(() => {
         const storedData = loadAnalysisResult();
         if (storedData) {
             setAnalysisResult(storedData.analysisResult);
             setOriginalImageUrl(storedData.originalImageUrl);
-            // Re-creating a File object from a data URL is complex and not always needed.
-            // For this app, we'll allow viewing the old result but re-analysis requires a fresh upload.
+            setUploadDate(storedData.uploadDate);
         }
     }, []);
 
@@ -41,6 +49,7 @@ const App: React.FC = () => {
         setOriginalImageFile(file);
         setAnalysisResult(null);
         setError(null);
+        setUploadDate(null);
         clearAnalysisResult(); // Clear previous saved result on new upload
         const reader = new FileReader();
         reader.onloadend = () => {
@@ -52,6 +61,7 @@ const App: React.FC = () => {
     const handleExampleImageSelect = useCallback(async (imageUrl: string) => {
         setError(null);
         setAnalysisResult(null);
+        setUploadDate(null);
         clearAnalysisResult();
         try {
             const response = await fetch(imageUrl);
@@ -77,6 +87,7 @@ const App: React.FC = () => {
         setError(null);
         setAnalysisResult(null);
         stopNarration();
+        setNarrationState('stopped');
 
         try {
             const [analysisData, tamperedImageUrl] = await Promise.all([
@@ -88,12 +99,20 @@ const App: React.FC = () => {
             setAnalysisResult(result);
 
             if (originalImageUrl) {
-                saveAnalysisResult({ analysisResult: result, originalImageUrl });
+                const storedData = { analysisResult: result, originalImageUrl };
+                saveAnalysisResult(storedData);
+                const loadedData = loadAnalysisResult(); // a bit inefficient but ensures we have the date
+                if(loadedData) setUploadDate(loadedData.uploadDate);
             }
-
-            setIsNarrating(true);
-            await narrateText(result.analysisText);
-            setIsNarrating(false);
+            
+            try {
+                setNarrationState('playing');
+                await narrateText(result.analysisText, narrationVolume);
+            } catch (err) {
+                console.error("Narration failed on startup", err);
+            } finally {
+                setNarrationState('stopped');
+            }
 
         } catch (err) {
             console.error(err);
@@ -104,23 +123,36 @@ const App: React.FC = () => {
         }
     };
     
-    const handleReplayNarration = useCallback(async () => {
-        if (analysisResult?.analysisText) {
-            if (isNarrating) {
-                stopNarration();
-                setIsNarrating(false);
-            } else {
-                setIsNarrating(true);
-                try {
-                    await narrateText(analysisResult.analysisText);
-                } catch(e) {
-                    console.error("Narration failed", e);
-                } finally {
-                    setIsNarrating(false);
-                }
+    const handlePlayPauseNarration = useCallback(async () => {
+        if (!analysisResult?.analysisText) return;
+
+        if (narrationState === 'playing') {
+            pauseNarration();
+            setNarrationState('paused');
+        } else if (narrationState === 'paused') {
+            resumeNarration();
+            setNarrationState('playing');
+        } else { // 'stopped'
+            try {
+                setNarrationState('playing');
+                await narrateText(analysisResult.analysisText, narrationVolume);
+            } catch (e) {
+                console.error("Narration failed", e);
+            } finally {
+                setNarrationState('stopped');
             }
         }
-    }, [analysisResult, isNarrating]);
+    }, [analysisResult, narrationState, narrationVolume]);
+
+    const handleStopNarration = useCallback(() => {
+        stopNarration();
+        setNarrationState('stopped');
+    }, []);
+
+    const handleVolumeChange = useCallback((volume: number) => {
+        setNarrationVolume(volume);
+        setNarrationVolume(volume);
+    }, []);
 
     const handleEnhance = useCallback(async () => {
         if (!analysisResult?.tamperedImageUrl) return;
@@ -142,11 +174,22 @@ const App: React.FC = () => {
         setOriginalImageUrl(null);
         setAnalysisResult(null);
         setError(null);
+        setUploadDate(null);
         setIsLoading(false);
-        setIsNarrating(false);
+        setNarrationState('stopped');
         setIsEnhancing(false);
         stopNarration();
         clearAnalysisResult();
+    }, []);
+    
+    const handleJumpToTimeline = useCallback((stepId: string) => {
+        setJumpToTimeline(stepId);
+        setTimeout(() => setJumpToTimeline(null), 500); // Reset after a moment
+    }, []);
+    
+    const handleFindSimilarCases = useCallback((term: string) => {
+        setFindCaseTerm(term);
+        setTimeout(() => setFindCaseTerm(null), 500); // Reset after a moment
     }, []);
 
     return (
@@ -204,10 +247,16 @@ const App: React.FC = () => {
                             <AnalysisResultDisplay
                                 result={analysisResult}
                                 originalImageUrl={originalImageUrl}
-                                isNarrating={isNarrating}
+                                narrationState={narrationState}
+                                narrationVolume={narrationVolume}
                                 isEnhancing={isEnhancing}
-                                onReplayNarration={handleReplayNarration}
+                                uploadDate={uploadDate}
+                                onPlayPauseNarration={handlePlayPauseNarration}
+                                onStopNarration={handleStopNarration}
+                                onVolumeChange={handleVolumeChange}
                                 onEnhanceImage={handleEnhance}
+                                onJumpToTimeline={handleJumpToTimeline}
+                                onFindSimilarCases={handleFindSimilarCases}
                              />
                         ) : (
                             <div className="text-center text-gray-400">
@@ -216,6 +265,11 @@ const App: React.FC = () => {
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* Forensics Hub Section */}
+                <div className="mt-12">
+                   <ForensicsHub jumpToTimeline={jumpToTimeline} findCaseTerm={findCaseTerm} />
                 </div>
             </main>
         </div>

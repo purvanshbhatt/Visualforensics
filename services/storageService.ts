@@ -5,11 +5,19 @@ const STORAGE_KEY = 'visualForensicsTutor_lastAnalysis';
 interface StoredData {
     analysisResult: AnalysisResult;
     originalImageUrl: string;
+    uploadDate: string;
 }
 
-export const saveAnalysisResult = (data: StoredData): void => {
+export const saveAnalysisResult = (data: Omit<StoredData, 'uploadDate'>): void => {
     try {
-        const dataString = JSON.stringify(data);
+        const now = new Date();
+        const formattedDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+        
+        const dataToStore: StoredData = {
+            ...data,
+            uploadDate: formattedDate,
+        };
+        const dataString = JSON.stringify(dataToStore);
         localStorage.setItem(STORAGE_KEY, dataString);
     } catch (error) {
         console.error("Failed to save analysis result to localStorage:", error);
