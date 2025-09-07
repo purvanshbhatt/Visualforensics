@@ -5,7 +5,43 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Visual Forensics Tutor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+              mono: ['Fira Code', 'monospace'],
+            },
+            colors: {
+              'cyan': {
+                ...tailwind.theme.colors.cyan,
+                '400': '#22d3ee',
+                '500': '#06b6d4',
+                '600': '#0891b2',
+              },
+              'base': {
+                '100': '#161B22', // Panel background
+                '200': '#0D1117', // Body background
+              }
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #0D1117;
+        background-image:
+          linear-gradient(rgba(22, 27, 34, 0.8) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(22, 27, 34, 0.8) 1px, transparent 1px);
+        background-size: 2rem 2rem;
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {
@@ -17,7 +53,7 @@
 }
 </script>
 </head>
-  <body class="bg-gray-900 text-gray-100">
+  <body class="bg-base-200 text-gray-300 font-sans">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

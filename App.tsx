@@ -1,12 +1,13 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import type { AnalysisResult } from './types';
+import type { AnalysisResult, ChatMessage, FileMetadata } from './types';
 import Header from './components/Header';
 import ImageUploader from './components/ImageUploader';
 import AnalysisResultDisplay from './components/AnalysisResult';
 import Loader from './components/Loader';
 import ExampleImages from './components/ExampleImages';
 import ForensicsHub from './components/ForensicsHub';
-import { analyzeImageForTampering, generateTamperedImage } from './services/geminiService';
+import ChatTutor from './components/ChatTutor';
+import { analyzeImageForTampering, generateTamperedImage, sendMessageToTutor } from './services/geminiService';
 import { narrateText, stopNarration, pauseNarration, resumeNarration, setNarrationVolume } from './services/elevenLabsService';
 import { enhanceImage } from './services/falService';
 import { saveAnalysisResult, loadAnalysisResult, clearAnalysisResult } from './services/storageService';
@@ -18,9 +19,19 @@ const exampleImages = [
     { src: 'https://images.unsplash.com/photo-1499951360447-b19be8fe80f5?w=400&q=80', alt: 'Desktop scene with laptop' },
 ];
 
+// Helper to generate a fake hash for visual purposes
+const createFakeHash = async (text: string) => {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(text);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+};
+
 const App: React.FC = () => {
     const [originalImageFile, setOriginalImageFile] = useState<File | null>(null);
     const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
+    const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
     const [prompt, setPrompt] = useState<string>("Analyze this image for tampering");
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [uploadDate, setUploadDate] = useState<string | null>(null);
@@ -36,12 +47,22 @@ const App: React.FC = () => {
     const [jumpToTimeline, setJumpToTimeline] = useState<string | null>(null);
     const [findCaseTerm, setFindCaseTerm] = useState<string | null>(null);
 
+    // Chat Tutor State
+    const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
+        { role: 'model', content: "Hello! I'm the Visual Forensics Tutor. Ask me about a forensic concept, a case study, or how to perform an investigation." }
+    ]);
+    const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+
     useEffect(() => {
         const storedData = loadAnalysisResult();
         if (storedData) {
             setAnalysisResult(storedData.analysisResult);
             setOriginalImageUrl(storedData.originalImageUrl);
             setUploadDate(storedData.uploadDate);
+            // We can't restore the file object, but we can restore metadata if saved
+            if (storedData.fileMetadata) {
+                setFileMetadata(storedData.fileMetadata);
+            }
         }
     }, []);
 
@@ -50,10 +71,23 @@ const App: React.FC = () => {
         setAnalysisResult(null);
         setError(null);
         setUploadDate(null);
+        setFileMetadata(null);
         clearAnalysisResult(); // Clear previous saved result on new upload
         const reader = new FileReader();
         reader.onloadend = () => {
-            setOriginalImageUrl(reader.result as string);
+            const resultUrl = reader.result as string;
+            setOriginalImageUrl(resultUrl);
+            const img = new Image();
+            img.onload = async () => {
+                const hash = await createFakeHash(resultUrl.split(',')[1]);
+                setFileMetadata({
+                    name: file.name,
+                    size: file.size,
+                    dimensions: `${img.naturalWidth} x ${img.naturalHeight}px`,
+                    hash: hash,
+                });
+            };
+            img.src = resultUrl;
         };
         reader.readAsDataURL(file);
     }, []);
@@ -99,7 +133,7 @@ const App: React.FC = () => {
             setAnalysisResult(result);
 
             if (originalImageUrl) {
-                const storedData = { analysisResult: result, originalImageUrl };
+                const storedData = { analysisResult: result, originalImageUrl, fileMetadata };
                 saveAnalysisResult(storedData);
                 const loadedData = loadAnalysisResult(); // a bit inefficient but ensures we have the date
                 if(loadedData) setUploadDate(loadedData.uploadDate);
@@ -172,6 +206,7 @@ const App: React.FC = () => {
     const handleReset = useCallback(() => {
         setOriginalImageFile(null);
         setOriginalImageUrl(null);
+        setFileMetadata(null);
         setAnalysisResult(null);
         setError(null);
         setUploadDate(null);
@@ -192,42 +227,60 @@ const App: React.FC = () => {
         setTimeout(() => setFindCaseTerm(null), 500); // Reset after a moment
     }, []);
 
+    const handleSendChatMessage = async (message: string) => {
+        const newUserMessage: ChatMessage = { role: 'user', content: message };
+        setChatMessages(prev => [...prev, newUserMessage]);
+        setIsChatLoading(true);
+
+        try {
+            const responseContent = await sendMessageToTutor(message);
+            const newModelMessage: ChatMessage = { role: 'model', content: responseContent };
+            setChatMessages(prev => [...prev, newModelMessage]);
+        } catch (err) {
+            console.error("Chat error:", err);
+            const errorMessage: ChatMessage = { role: 'model', content: "Sorry, I encountered an error. Please try again." };
+            setChatMessages(prev => [...prev, errorMessage]);
+        } finally {
+            setIsChatLoading(false);
+        }
+    };
+
     return (
-        <div className="min-h-screen bg-gray-900 text-gray-100 font-sans">
+        <div className="min-h-screen">
             <Header />
             <main className="container mx-auto p-4 md:p-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Controls Column */}
-                    <div className="lg:col-span-1 bg-gray-800/50 p-6 rounded-lg border border-gray-700 shadow-xl space-y-6 self-start">
+                    <div className="lg:col-span-1 bg-base-100/80 p-6 rounded-lg border border-gray-700/50 shadow-2xl backdrop-blur-sm space-y-6 self-start">
                         <div>
-                           <h2 className="text-xl font-semibold mb-2 text-cyan-300">1. Upload Image</h2>
+                           <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400 border-b border-cyan-400/20 pb-2 mb-4">1. Upload Evidence</h2>
                            <ImageUploader onImageUpload={handleImageUpload} imageUrl={originalImageUrl} />
                         </div>
-                        <div className="my-4 border-t border-gray-600"></div>
+                        
                         <ExampleImages images={exampleImages} onSelect={handleExampleImageSelect} disabled={isLoading} />
                          <div>
-                           <h2 className="text-xl font-semibold mb-2 text-cyan-300">2. Analysis Prompt</h2>
+                           <h2 className="text-sm font-bold uppercase tracking-wider text-cyan-400 border-b border-cyan-400/20 pb-2 mb-4">2. Analysis Parameters</h2>
                            <textarea
                                 value={prompt}
                                 onChange={(e) => setPrompt(e.target.value)}
-                                className="w-full p-2 bg-gray-700 border border-gray-600 rounded-md focus:ring-2 focus:ring-cyan-500 focus:outline-none"
+                                className="w-full p-2 bg-base-200 text-gray-300 border border-gray-600/80 rounded-md focus:ring-2 focus:ring-cyan-500/50 focus:outline-none transition-shadow"
                                 rows={3}
                             />
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 pt-2 border-t border-gray-700/50">
                             <button
                                 onClick={handleAnalyze}
                                 disabled={!originalImageFile || isLoading}
-                                className="sm:col-span-4 w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-cyan-800 disabled:cursor-not-allowed disabled:text-gray-400"
+                                className="sm:col-span-4 w-full bg-cyan-500/80 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition-all border border-cyan-400/50 shadow-md hover:shadow-cyan-400/20 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none disabled:border-gray-600"
                             >
-                                {isLoading ? 'Analyzing...' : 'Analyze Image'}
+                                {isLoading ? 'Analyzing...' : 'Execute Analysis'}
                             </button>
                             <button
                                 onClick={handleReset}
                                 disabled={isLoading || (!originalImageFile && !analysisResult)}
                                 title="Clear image and analysis"
                                 aria-label="Clear image and analysis"
-                                className="sm:col-span-1 w-full flex justify-center items-center bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed disabled:text-gray-400"
+                                className="sm:col-span-1 w-full flex justify-center items-center bg-gray-700/80 hover:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-all border border-gray-600/50 shadow-md hover:shadow-gray-500/20 disabled:bg-gray-800 disabled:cursor-not-allowed disabled:shadow-none disabled:text-gray-500"
                             >
                                 <TrashIcon />
                             </button>
@@ -235,11 +288,11 @@ const App: React.FC = () => {
                     </div>
 
                     {/* Results Column */}
-                    <div className="lg:col-span-2 bg-gray-800/50 p-6 rounded-lg border border-gray-700 min-h-[300px] flex items-center justify-center">
+                    <div className="lg:col-span-2 bg-base-100/80 p-1 rounded-lg border border-gray-700/50 shadow-2xl backdrop-blur-sm min-h-[500px] flex flex-col items-center justify-center">
                         {isLoading ? (
                             <Loader message="Running Forensic Analysis..." />
                         ) : error ? (
-                            <div className="text-center text-red-400 bg-red-900/50 p-4 rounded-lg">
+                            <div className="text-center text-red-400 bg-red-900/50 p-4 rounded-lg border border-red-700/50">
                                 <h3 className="font-bold text-lg">Error</h3>
                                 <p>{error}</p>
                             </div>
@@ -247,6 +300,7 @@ const App: React.FC = () => {
                             <AnalysisResultDisplay
                                 result={analysisResult}
                                 originalImageUrl={originalImageUrl}
+                                fileMetadata={fileMetadata}
                                 narrationState={narrationState}
                                 narrationVolume={narrationVolume}
                                 isEnhancing={isEnhancing}
@@ -259,10 +313,11 @@ const App: React.FC = () => {
                                 onFindSimilarCases={handleFindSimilarCases}
                              />
                         ) : (
-                            <div className="text-center text-gray-400">
-                                <h2 className="text-2xl font-semibold">Ready for Analysis</h2>
-                                <p className="mt-2">Upload an image or select an example to begin.</p>
+                            <div className="text-center text-gray-500">
+                                <h2 className="text-2xl font-semibold">Awaiting Evidence</h2>
+                                <p className="mt-2">Upload an image or select an example to begin analysis.</p>
                             </div>
+
                         )}
                     </div>
                 </div>
@@ -272,6 +327,11 @@ const App: React.FC = () => {
                    <ForensicsHub jumpToTimeline={jumpToTimeline} findCaseTerm={findCaseTerm} />
                 </div>
             </main>
+            <ChatTutor 
+                messages={chatMessages}
+                isLoading={isChatLoading}
+                onSendMessage={handleSendChatMessage}
+            />
         </div>
     );
 };

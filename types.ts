@@ -6,10 +6,23 @@ export interface BoundingBox {
     description: string;
 }
 
+export interface AiDetectionResult {
+    isAiGenerated: boolean;
+    reasoning: string;
+}
+
 export interface AnalysisResult {
   analysisText: string;
   tamperedImageUrl: string;
   manipulatedAreas?: BoundingBox[];
+  aiDetection?: AiDetectionResult;
+}
+
+export interface FileMetadata {
+    name: string;
+    size: number;
+    dimensions: string;
+    hash?: string; // Simulated SHA-256 hash
 }
 
 export interface TimelineStep {
@@ -30,4 +43,9 @@ export interface Case {
     details: string;
     workflow: string[];
     tools: string[];
+}
+
+export interface ChatMessage {
+  role: 'user' | 'model';
+  content: string;
 }

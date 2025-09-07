@@ -1,4 +1,4 @@
-import type { AnalysisResult } from '../types';
+import type { AnalysisResult, FileMetadata } from '../types';
 
 const STORAGE_KEY = 'visualForensicsTutor_lastAnalysis';
 
@@ -6,6 +6,7 @@ interface StoredData {
     analysisResult: AnalysisResult;
     originalImageUrl: string;
     uploadDate: string;
+    fileMetadata: FileMetadata | null;
 }
 
 export const saveAnalysisResult = (data: Omit<StoredData, 'uploadDate'>): void => {

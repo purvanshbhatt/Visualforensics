@@ -14,14 +14,14 @@ interface ExampleImagesProps {
 const ExampleImages: React.FC<ExampleImagesProps> = ({ images, onSelect, disabled }) => {
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-3 text-gray-300">Or try an example:</h3>
+      <h3 className="text-md font-semibold mb-3 text-gray-300">Or use an example file:</h3>
       <div className="grid grid-cols-3 gap-2">
         {images.map((image) => (
           <button
             key={image.src}
             onClick={() => onSelect(image.src)}
             disabled={disabled}
-            className="rounded-lg overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed group"
+            className="rounded-md overflow-hidden focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-base-100 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed group border-2 border-transparent hover:border-cyan-400/50"
             aria-label={`Select example image: ${image.alt}`}
           >
             <img
