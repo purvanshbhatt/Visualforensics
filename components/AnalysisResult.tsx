@@ -54,7 +54,8 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
   useEffect(() => {
     setVisibleBoxes([]); // Reset on new result
     if (result.manipulatedAreas && result.manipulatedAreas.length > 0) {
-      const timeouts: NodeJS.Timeout[] = [];
+      // FIX: In a browser environment, the return type of `setTimeout` is `number`, not `NodeJS.Timeout`.
+      const timeouts: number[] = [];
       result.manipulatedAreas.forEach((_, index) => {
         const timeout = setTimeout(() => {
           setVisibleBoxes(prev => [...prev, index]);
@@ -135,14 +136,44 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
   );
   
   const renderAiAnalysis = () => (
-     <div className="p-4 animate-fade-in">
+     <div className="p-4 animate-fade-in space-y-4">
         {result.aiDetection ? (
-            <div className={`p-4 rounded-lg border ${result.aiDetection.isAiGenerated ? 'bg-yellow-900/30 border-yellow-700/50' : 'bg-green-900/30 border-green-700/50'}`}>
-              <h3 className={`text-lg font-semibold ${result.aiDetection.isAiGenerated ? 'text-yellow-300' : 'text-green-300'}`}>
-                {result.aiDetection.isAiGenerated ? 'Likely AI-Generated' : 'Likely Not AI-Generated'}
-              </h3>
-              <p className="text-gray-300 mt-2 whitespace-pre-wrap">{result.aiDetection.reasoning}</p>
-            </div>
+            <>
+                <div className={`p-4 rounded-lg border ${result.aiDetection.isAiGenerated ? 'bg-yellow-900/30 border-yellow-700/50' : 'bg-green-900/30 border-green-700/50'}`}>
+                <h3 className={`text-lg font-semibold ${result.aiDetection.isAiGenerated ? 'text-yellow-300' : 'text-green-300'}`}>
+                    {result.aiDetection.isAiGenerated ? 'Likely AI-Generated' : 'Likely Not AI-Generated'}
+                </h3>
+                <p className="text-gray-300 mt-2 whitespace-pre-wrap">{result.aiDetection.reasoning}</p>
+                </div>
+
+                {result.aiDetection.isAiGenerated && (
+                <div className="p-4 bg-base-200/50 rounded-lg border border-gray-700/50">
+                    <h4 className="text-md font-bold text-gray-200 mb-3">What to Look For: Common AI-Generated Image Artifacts</h4>
+                    <ul className="space-y-2 text-sm text-gray-400">
+                    <li className="flex items-start gap-2">
+                        <span className="text-cyan-400 mt-1">▶</span>
+                        <div><strong>Unnatural Textures:</strong> Look for skin that appears overly smooth or "waxy," and backgrounds or clothing that lack fine, realistic detail.</div>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-cyan-400 mt-1">▶</span>
+                        <div><strong>Anatomical Inconsistencies:</strong> AI models often struggle with hands (e.g., wrong number of fingers), feet, and teeth. Look for strange proportions or impossible poses.</div>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-cyan-400 mt-1">▶</span>
+                        <div><strong>Inconsistent Lighting & Shadows:</strong> Check if shadows match the light sources in the scene. AI can create objects with shadows that fall in the wrong direction or don't exist at all.</div>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-cyan-400 mt-1">▶</span>
+                        <div><strong>Logical Errors:</strong> Examine the background for details that don't make sense, like distorted text, merged objects, or architecture that defies physics.</div>
+                    </li>
+                    <li className="flex items-start gap-2">
+                        <span className="text-cyan-400 mt-1">▶</span>
+                        <div><strong>Perfect Symmetry or Patterns:</strong> Sometimes, AI-generated patterns or objects are too perfect and lack the natural variation found in real-world photos.</div>
+                    </li>
+                    </ul>
+                </div>
+                )}
+            </>
         ) : <p>No AI Detection analysis available.</p>}
      </div>
   );
@@ -172,17 +203,16 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
                         return (
                             <div
                                 key={index}
-                                className={`absolute border-2 border-red-500 rounded-sm group pointer-events-none transition-all duration-500 ease-out ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
+                                className={`absolute rounded-sm group pointer-events-none transition-all duration-500 ease-out animate-pulse-red ${isVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'}`}
                                 style={{
                                     left: `${left}%`,
                                     top: `${top}%`,
                                     width: `${width}%`,
                                     height: `${height}%`,
-                                    boxShadow: '0 0 10px rgba(239, 68, 68, 0.7)'
                                 }}
                             >
                               <div 
-                                className="absolute top-0 left-0 w-full h-full bg-red-500/0 group-hover:bg-red-500/20 group-hover:scale-105 transition-all duration-200 pointer-events-auto"
+                                className="absolute top-0 left-0 w-full h-full bg-red-500/20 group-hover:bg-red-500/30 border-2 border-red-500 rounded-sm transition-all duration-200 pointer-events-auto"
                                 title={area.description}
                               >
                                   <span className="absolute -top-7 left-0 w-max max-w-xs bg-base-200 text-white text-xs p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10 pointer-events-none border border-gray-600">
