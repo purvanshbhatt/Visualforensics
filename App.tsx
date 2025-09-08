@@ -32,7 +32,7 @@ const App: React.FC = () => {
     const [originalImageFile, setOriginalImageFile] = useState<File | null>(null);
     const [originalImageUrl, setOriginalImageUrl] = useState<string | null>(null);
     const [fileMetadata, setFileMetadata] = useState<FileMetadata | null>(null);
-    const [prompt, setPrompt] = useState<string>("Analyze this image for tampering");
+    const [prompt, setPrompt] = useState<string>("Perform forensic triage. Focus on cloning, splicing, and compression artifacts.");
     const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
     const [uploadDate, setUploadDate] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -273,7 +273,7 @@ const App: React.FC = () => {
                                 disabled={!originalImageFile || isLoading}
                                 className="sm:col-span-4 w-full bg-cyan-500/80 hover:bg-cyan-500 text-white font-bold py-3 px-4 rounded-lg transition-all border border-cyan-400/50 shadow-md hover:shadow-cyan-400/20 disabled:bg-gray-700 disabled:text-gray-400 disabled:cursor-not-allowed disabled:shadow-none disabled:border-gray-600"
                             >
-                                {isLoading ? 'Analyzing...' : 'Execute Analysis'}
+                                {isLoading ? 'Executing...' : 'Execute Triage'}
                             </button>
                             <button
                                 onClick={handleReset}
@@ -290,7 +290,7 @@ const App: React.FC = () => {
                     {/* Results Column */}
                     <div className="lg:col-span-2 bg-base-100/80 p-1 rounded-lg border border-gray-700/50 shadow-2xl backdrop-blur-sm min-h-[500px] flex flex-col items-center justify-center">
                         {isLoading ? (
-                            <Loader message="Running Forensic Analysis..." />
+                            <Loader message="Executing Forensic Triage..." />
                         ) : error ? (
                             <div className="text-center text-red-400 bg-red-900/50 p-4 rounded-lg border border-red-700/50">
                                 <h3 className="font-bold text-lg">Error</h3>
@@ -315,7 +315,7 @@ const App: React.FC = () => {
                         ) : (
                             <div className="text-center text-gray-500">
                                 <h2 className="text-2xl font-semibold">Awaiting Evidence</h2>
-                                <p className="mt-2">Upload an image or select an example to begin analysis.</p>
+                                <p className="mt-2">Upload an image or select a case file to begin triage.</p>
                             </div>
 
                         )}

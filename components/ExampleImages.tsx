@@ -14,7 +14,7 @@ interface ExampleImagesProps {
 const ExampleImages: React.FC<ExampleImagesProps> = ({ images, onSelect, disabled }) => {
   return (
     <div>
-      <h3 className="text-md font-semibold mb-3 text-gray-300">Or use an example file:</h3>
+      <h3 className="text-md font-semibold mb-3 text-gray-300">Or use a case file:</h3>
       <div className="grid grid-cols-3 gap-2">
         {images.map((image) => (
           <button

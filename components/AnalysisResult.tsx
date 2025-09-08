@@ -72,7 +72,7 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
   const getPlayButtonContent = () => {
       if (narrationState === 'playing') return <><PauseIcon /> Pause</>;
       if (narrationState === 'paused') return <><PlayIcon /> Resume</>;
-      return <><PlayIcon /> Play Narration</>;
+      return <><PlayIcon /> Play Report Summary</>;
   };
   
   const renderMetadata = () => (
@@ -105,7 +105,7 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
              <div className="flex items-center justify-center gap-4">
                 <button
                     onClick={onPlayPauseNarration}
-                    className="w-36 flex items-center justify-center px-4 py-2 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                    className="w-48 flex items-center justify-center px-4 py-2 font-semibold text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
                     >
                     {getPlayButtonContent()}
                 </button>
@@ -271,7 +271,7 @@ const AnalysisResultDisplay: React.FC<AnalysisResultProps> = ({
                   Enhancing...
                 </>
               ) : (
-                <><SparklesIcon /> Enhance (Simulated)</>
+                <><SparklesIcon /> Enhance ROI (Simulated)</>
               )}
             </button>
          </div>

@@ -1,5 +1,5 @@
 {
-  "name": "Visual Forensics Tutor",
+  "name": "Forensic Triage Tool",
   "description": "An AI-powered application to help users learn how to spot manipulated or tampered images. It uses Gemini for image analysis and generation, with simulated audio narration and image enhancement features.",
   "requestFramePermissions": []
 }
